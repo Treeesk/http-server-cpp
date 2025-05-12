@@ -57,9 +57,14 @@ int main(int argc, char **argv) {
   std::cout << "Waiting for a client to connect...\n";
   
   // Блокирующая функция, которая ждет клиента. Когда клиент подключается, возвращает новый сокет(файловый дескриптор, представляющий соединение с клиентом).
-  accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
+  int client_socket  = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
   std::cout << "Client connected\n";
-  
+  // Accepting user requests
+  char buffer[1024] = { 0 };
+  recv(client_socket, buffer, sizeof(buffer), 0);
+  char response[] = "HTTP/1.1 200 OK\r\n\r\n";
+  send(client_socket, response, sizeof(response), 0);
+
   close(server_fd);
 
   return 0;
