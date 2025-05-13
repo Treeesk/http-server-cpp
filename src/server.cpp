@@ -62,8 +62,8 @@ int main(int argc, char **argv) {
   // Accepting user requests
   char buffer[1024] = { 0 };
   recv(client_socket, buffer, sizeof(buffer), 0);
-  char response[] = "HTTP/1.1 200 OK\r\n\r\n";
-  send(client_socket, response, sizeof(response), 0);
+  char response[] = "HTTP/1.1 200 OK\r\n\r\n"; 
+  send(client_socket, response, sizeof(response), 0); //Send response to client
 
   close(server_fd);
 
