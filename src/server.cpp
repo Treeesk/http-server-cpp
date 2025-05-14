@@ -88,6 +88,17 @@ int main(int argc, char **argv) {
                << "abc"; // Body
       send(client_socket, response.str().c_str(), response.str().size(), 0);
     }
+    else if (str_buf.find("/user-agent") != std::string::npos){
+      int pos = str_buf.rfind("User-Agent:") + 11;
+      if (str_buf[pos] == ' ')
+        pos++;
+      std::string body = str_buf.substr(pos);
+      response << "HTTP/1.1 200 OK\r\n\r\n" // Status line
+               << "Content-Type: text/plain\r\n" // Headers
+               << "Content-Length: " << body.size() << "\r\n\r\n"
+               << body; // Body
+      send(client_socket, response.str().c_str(), response.str().size(), 0);
+    }
     // Bad path
     else {
       char response[] = "HTTP/1.1 404 Not Found\r\n\r\n"; 
