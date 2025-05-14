@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cstdlib>
 #include <string>
+#include <sstream>
 #include <cstring>
 #include <unistd.h>
 #include <sys/types.h>
@@ -61,21 +62,40 @@ int main(int argc, char **argv) {
   std::cout << "Client connected\n";
   // Accepting user requests
   char buffer[1024] = { 0 };
-  recv(client_socket, buffer, sizeof(buffer), 0);
-  int i = 0;
-  while (!isspace(buffer[i++]));
-  // Normal path
-  if (isspace(buffer[i + 1])){
-    char response[] = "HTTP/1.1 200 OK\r\n\r\n"; 
-    send(client_socket, response, sizeof(response), 0); //Send response to client
+  int result = recv(client_socket, buffer, sizeof(buffer), 0);
+  std::stringstream response;
+  if (result == 0) {
+    std::cerr << "Connection closed...\n";
   }
-  // Bad path
+  else if (result < 0){
+    std::cerr << "recv failed: " << result << "\n";
+    close(server_fd);
+  }
   else {
-    char response[] = "HTTP/1.1 404 Not Found\r\n\r\n"; 
-    send(client_socket, response, sizeof(response), 0); //Send response to client
-  }
+    int i = 0;
+    std::string str_buf = std::string(buffer);
+    while (!isspace(str_buf[i++]));
+    // Normal base path
+    if (isspace(str_buf[i + 1])){
+      response << "HTTP/1.1 200 OK\r\n\r\n"; 
+      send(client_socket, response.str().c_str(), response.str().size(), 0); //Send response to client
+    }
+    // path localhost:4221/echo/abc
+    else if (str_buf.find("/echo/abc") != std::string::npos){
+      response << "HTTP/1.1 200 OK\r\n\r\n" // Status line
+               << "Content-Type: text/plain\r\n" // Headers
+               << "Content-Length: " << 3 << "\r\n\r\n"
+               << "abc"; // Body
+      send(client_socket, response.str().c_str(), response.str().size(), 0);
+    }
+    // Bad path
+    else {
+      char response[] = "HTTP/1.1 404 Not Found\r\n\r\n"; 
+      send(client_socket, response, sizeof(response), 0); //Send response to client
+    }
 
-  close(server_fd);
+    close(server_fd);
+  }
 
   return 0;
 }
