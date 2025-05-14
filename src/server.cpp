@@ -44,8 +44,8 @@ int main(int argc, char **argv) {
     return 1;
   }
   
-  // Затем указываем слушать сокет server_fd, чтобы он мог принимать входящие подключения через accept. Максимум 5 клиентов на подключение. 
-  int connection_backlog = 5;
+  // Затем указываем слушать сокет server_fd, чтобы он мог принимать входящие подключения через accept. Максимум 25 клиентов на подключение. 
+  int connection_backlog = 25;
   if (listen(server_fd, connection_backlog) != 0) {
     std::cerr << "listen failed\n";
     return 1;
@@ -54,59 +54,61 @@ int main(int argc, char **argv) {
   // Заполнится системой при подключении.
   sockaddr_in client_addr;
   int client_addr_len = sizeof(client_addr);
-  
+  const int buf_size_client = 1024;
+  char buffer[buf_size_client] = { 0 };
   std::cout << "Waiting for a client to connect...\n";
-  
-  // Блокирующая функция, которая ждет клиента. Когда клиент подключается, возвращает новый сокет(файловый дескриптор, представляющий соединение с клиентом).
-  int client_socket  = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
-  std::cout << "Client connected\n";
-  // Accepting user requests
-  char buffer[1024] = { 0 };
-  int result = recv(client_socket, buffer, sizeof(buffer), 0);
-  std::stringstream response;
-  if (result == 0) {
-    std::cerr << "Connection closed...\n";
-  }
-  else if (result < 0){
-    std::cerr << "recv failed: " << result << "\n";
-    close(server_fd);
-  }
-  else {
-    int i = 0;
-    std::string str_buf = std::string(buffer);
-    while (!isspace(str_buf[i++]));
-    // Normal base path
-    if (isspace(str_buf[i + 1])){
-      response << "HTTP/1.1 200 OK\r\n\r\n"; 
-      send(client_socket, response.str().c_str(), response.str().size(), 0); //Send response to client
+  for (;;){
+    // Блокирующая функция, которая ждет клиента. Когда клиент подключается, возвращает новый сокет(файловый дескриптор, представляющий соединение с клиентом).
+    int client_socket  = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
+    std::cout << "Client connected\n";
+    // Accepting user requests
+    int result = recv(client_socket, buffer, sizeof(buffer), 0);
+    std::stringstream response;
+    if (result == 0) {
+      std::cerr << "Connection closed...\n";
     }
-    // path localhost:4221/echo/abc
-    else if (str_buf.find("/echo/abc") != std::string::npos){
-      response << "HTTP/1.1 200 OK\r\n\r\n" // Status line
-               << "Content-Type: text/plain\r\n" // Headers
-               << "Content-Length: " << 3 << "\r\n\r\n"
-               << "abc"; // Body
-      send(client_socket, response.str().c_str(), response.str().size(), 0);
+    else if (result < 0){
+      std::cerr << "recv failed: " << result << "\n";
+      close(client_socket);
     }
-    else if (str_buf.find("/user-agent") != std::string::npos){
-      int pos = str_buf.rfind("User-Agent:") + 11;
-      if (str_buf[pos] == ' ')
-        pos++;
-      std::string body = str_buf.substr(pos);
-      response << "HTTP/1.1 200 OK\r\n\r\n" // Status line
-               << "Content-Type: text/plain\r\n" // Headers
-               << "Content-Length: " << body.size() << "\r\n\r\n"
-               << body; // Body
-      send(client_socket, response.str().c_str(), response.str().size(), 0);
-    }
-    // Bad path
     else {
-      char response[] = "HTTP/1.1 404 Not Found\r\n\r\n"; 
-      send(client_socket, response, sizeof(response), 0); //Send response to client
+      int i = 0;
+      std::string str_buf = std::string(buffer);
+      while (!isspace(str_buf[i++]));
+      // Normal base path
+      if (isspace(str_buf[i + 1])){
+        response << "HTTP/1.1 200 OK\r\n\r\n"; 
+        send(client_socket, response.str().c_str(), response.str().size(), 0); //Send response to client
+      }
+      // path localhost:4221/echo/abc
+      else if (str_buf.find("/echo/abc") != std::string::npos){
+        response << "HTTP/1.1 200 OK\r\n\r\n" // Status line
+                << "Content-Type: text/plain\r\n" // Headers
+                << "Content-Length: " << 3 << "\r\n\r\n"
+                << "abc"; // Body
+        send(client_socket, response.str().c_str(), response.str().size(), 0);
+      }
+      else if (str_buf.find("/user-agent") != std::string::npos){
+        int pos = str_buf.rfind("User-Agent:") + 11;
+        if (str_buf[pos] == ' ')
+          pos++;
+        std::string body = str_buf.substr(pos);
+        response << "HTTP/1.1 200 OK\r\n\r\n" // Status line
+                << "Content-Type: text/plain\r\n" // Headers
+                << "Content-Length: " << body.size() << "\r\n\r\n"
+                << body; // Body
+        send(client_socket, response.str().c_str(), response.str().size(), 0);
+      }
+      // Bad path
+      else {
+        char response[] = "HTTP/1.1 404 Not Found\r\n\r\n"; 
+        send(client_socket, response, sizeof(response), 0); //Send response to client
+      }
+      close(client_socket);
+      std::cout << "Connection closed...\n";
     }
-
-    close(server_fd);
   }
 
+  close(server_fd);
   return 0;
 }
