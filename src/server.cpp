@@ -1,7 +1,7 @@
 #include <iostream>
 #include <cstdlib>
 #include <fstream>
-#include <string>
+//#include <string>
 #include <sstream>
 #include <cstring>
 #include <unistd.h>
@@ -9,10 +9,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netdb.h>
-
-// Добавить может быть функцию, которая будет смотреть что за запрос поступил, и возвращать число, а в main switch сделать
-
-std::string parse_command(std::string&);
+#include "funcs.h"
 
 int main(int argc, char **argv) {
   // Flush after every std::cout / std::cerr
@@ -79,70 +76,75 @@ int main(int argc, char **argv) {
     }
     
     else {
-      int i = 0;
       std::string str_buf = std::string(buffer);
-      while (!isspace(str_buf[i++]));
-      // Normal base path
-      if (isspace(str_buf[i + 1])){
-        response << "HTTP/1.1 200 OK\r\n"; 
-        send(client_socket, response.str().c_str(), response.str().size(), 0); //Send response to client
-      }
+      switch (choose_path(str_buf)) {
+        // Normal base path
+        case paths::base: {
+          response << "HTTP/1.1 200 OK\r\n";
+          send(client_socket, response.str().c_str(), response.str().size(), 0); //Send response to client
+          break;
+        }
 
-      // path localhost:4221/echo/abc
-      else if (str_buf.find("/echo/abc") != std::string::npos){
-        response << "HTTP/1.1 200 OK\r\n" // Status line
-                << "Content-Type: text/plain\r\n" // Headers
-                << "Content-Length: " << 3 << "\r\n\r\n"
-                << "abc"; // Body
-        send(client_socket, response.str().c_str(), response.str().size(), 0);
-      }
+        // path localhost:4221/echo/abc
+        case paths::echo:{
+          response << "HTTP/1.1 200 OK\r\n" // Status line
+                  << "Content-Type: text/plain\r\n" // Headers
+                  << "Content-Length: " << 3 << "\r\n\r\n"
+                  << "abc"; // Body
+          send(client_socket, response.str().c_str(), response.str().size(), 0);
+          break;
+        }
 
-      else if (str_buf.find("/user-agent") != std::string::npos){
-        int pos = str_buf.rfind("User-Agent:") + 11;
-        if (str_buf[pos] == ' ')
-          pos++;
-        std::string body = str_buf.substr(pos);
-        response << "HTTP/1.1 200 OK\r\n" // Status line
-                << "Content-Type: text/plain\r\n" // Headers
-                << "Content-Length: " << body.size() << "\r\n\r\n"
-                << body; // Body
-        send(client_socket, response.str().c_str(), response.str().size(), 0);
-      }
+        // path localhost:4221/user-agent
+        case paths::agent:{
+          int pos = str_buf.rfind("User-Agent:") + 11;
+          if (str_buf[pos] == ' ')
+            pos++;
+          std::string body = str_buf.substr(pos);
+          response << "HTTP/1.1 200 OK\r\n" // Status line
+                  << "Content-Type: text/plain\r\n" // Headers
+                  << "Content-Length: " << body.size() << "\r\n\r\n"
+                  << body; // Body
+          send(client_socket, response.str().c_str(), response.str().size(), 0);
+          break;
+        }
 
-      else if (str_buf.find("/files/") != std::string::npos){
-        std::string path = "/tmp/" + str_buf.substr(str_buf.find("/files/") + 7, str_buf.find("HTTP/1.1") - str_buf.find("/files/") - 8);
-        // GET request
-        if (parse_command(str_buf) == "GET"){
-          std::ifstream in(path);
-          if (in.is_open()){
-            std::stringstream body;
-            body << in.rdbuf(); // in.rdbuf() return adress buf file, body << (function take adress and read buffer file)
-            std::string st = body.str();
-            response << "HTTP/1.1 200 OK\r\n" // Status line
-                    << "Content-Type: application/octet-stream\r\n" // Headers
-                    << "Content-Length: " << st.size() << "\r\n\r\n"
-                    << st; // body
-            in.close();
+        // path like localhost:4221/files/{path_to_file}
+        case paths::file: {
+          std::string path = "/tmp/" + str_buf.substr(str_buf.find("/files/") + 7, str_buf.find("HTTP/1.1") - str_buf.find("/files/") - 8);
+          // GET request
+          if (parse_command(str_buf) == "GET"){
+            std::ifstream in(path);
+            if (in.is_open()){
+              std::stringstream body;
+              body << in.rdbuf(); // in.rdbuf() return adress buf file, body << (function take adress and read buffer file)
+              std::string st = body.str();
+              response << "HTTP/1.1 200 OK\r\n" // Status line
+                      << "Content-Type: application/octet-stream\r\n" // Headers
+                      << "Content-Length: " << st.size() << "\r\n\r\n"
+                      << st; // body
+              in.close();
+            }
+            else {
+              response << "HTTP/1.1 404 Not Found\r\n\r\n";
+            }
           }
+          // POST request
           else {
-            response << "HTTP/1.1 404 Not Found\r\n\r\n";
+            std::ofstream out(path);
+            std::string request_body = str_buf.substr(str_buf.rfind("\r\n\r\n") + 4);
+            out << request_body;
+            response << "HTTP/1.1 201 Created\r\n\r\n";
+            out.close();
           }
+          send(client_socket, response.str().c_str(), response.str().size(), 0);
+          break;
         }
-
-        // POST request
-        else {
-          std::ofstream out(path);
-          std::string request_body = str_buf.substr(str_buf.rfind("\r\n\r\n") + 4);
-          out << request_body;
-          response << "HTTP/1.1 201 Created\r\n\r\n";
-          out.close();
+        // Bad path
+        case paths::def: {
+          response << "HTTP/1.1 404 Not Found\r\n\r\n";
+          send(client_socket, response.str().c_str(), response.str().size(), 0); //Send response to client
         }
-        send(client_socket, response.str().c_str(), response.str().size(), 0);
-      }
-      // Bad path
-      else {
-        response << "HTTP/1.1 404 Not Found\r\n\r\n"; 
-        send(client_socket, response.str().c_str(), response.str().size(), 0); //Send response to client
       }
       close(client_socket);
       std::cout << "Connection closed...\n";
@@ -150,15 +152,4 @@ int main(int argc, char **argv) {
   }
   close(server_fd);
   return 0;
-}
-
-// Parse method(GET, POST...)
-std::string parse_command(std::string& str) {
-  std::string com = "";
-  int i = 0;
-  while (!isspace(str[i])){
-    com += str[i];
-    i++;
-  }
-  return com;
 }
