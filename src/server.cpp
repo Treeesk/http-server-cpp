@@ -10,6 +10,10 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
+// Добавить может быть функцию, которая будет смотреть что за запрос поступил, и возвращать число, а в main switch сделать
+
+std::string parse_command(std::string&);
+
 int main(int argc, char **argv) {
   // Flush after every std::cout / std::cerr
   std::cout << std::unitbuf;
@@ -68,10 +72,12 @@ int main(int argc, char **argv) {
     if (result == 0) {
       std::cerr << "Connection closed...\n";
     }
+
     else if (result < 0){
       std::cerr << "recv failed: " << result << "\n";
       close(client_socket);
     }
+    
     else {
       int i = 0;
       std::string str_buf = std::string(buffer);
@@ -81,6 +87,7 @@ int main(int argc, char **argv) {
         response << "HTTP/1.1 200 OK\r\n"; 
         send(client_socket, response.str().c_str(), response.str().size(), 0); //Send response to client
       }
+
       // path localhost:4221/echo/abc
       else if (str_buf.find("/echo/abc") != std::string::npos){
         response << "HTTP/1.1 200 OK\r\n" // Status line
@@ -89,6 +96,7 @@ int main(int argc, char **argv) {
                 << "abc"; // Body
         send(client_socket, response.str().c_str(), response.str().size(), 0);
       }
+
       else if (str_buf.find("/user-agent") != std::string::npos){
         int pos = str_buf.rfind("User-Agent:") + 11;
         if (str_buf[pos] == ' ')
@@ -100,35 +108,57 @@ int main(int argc, char **argv) {
                 << body; // Body
         send(client_socket, response.str().c_str(), response.str().size(), 0);
       }
+
       else if (str_buf.find("/files/") != std::string::npos){
         std::string path = "/tmp/" + str_buf.substr(str_buf.find("/files/") + 7, str_buf.find("HTTP/1.1") - str_buf.find("/files/") - 8);
-        std::ifstream file(path);
-        if (file.is_open()){
-          std::stringstream body;
-          body << file.rdbuf(); // file.rdbuf() return adress buf file, body << (function take adress and read buffer file)
-          std::string st = body.str();
-          response << "HTTP/1.1 200 OK\r\n" // Status line
-                  << "Content-Type: application/octet-stream\r\n" // Headers
-                  << "Content-Length: " << st.size() << "\r\n\r\n"
-                  << st; // body
-          file.close();
+        // GET request
+        if (parse_command(str_buf) == "GET"){
+          std::ifstream in(path);
+          if (in.is_open()){
+            std::stringstream body;
+            body << in.rdbuf(); // in.rdbuf() return adress buf file, body << (function take adress and read buffer file)
+            std::string st = body.str();
+            response << "HTTP/1.1 200 OK\r\n" // Status line
+                    << "Content-Type: application/octet-stream\r\n" // Headers
+                    << "Content-Length: " << st.size() << "\r\n\r\n"
+                    << st; // body
+            in.close();
+          }
+          else {
+            response << "HTTP/1.1 404 Not Found\r\n\r\n";
+          }
         }
+
+        // POST request
         else {
-          response << "HTTP/1.1 404 Not Found\r\n\r\n";
+          std::ofstream out(path);
+          std::string request_body = str_buf.substr(str_buf.rfind("\r\n\r\n") + 4);
+          out << request_body;
+          response << "HTTP/1.1 201 Created\r\n\r\n";
+          out.close();
         }
         send(client_socket, response.str().c_str(), response.str().size(), 0);
       }
       // Bad path
       else {
-        char response[] = "HTTP/1.1 404 Not Found\r\n\r\n"; 
-        send(client_socket, response, sizeof(response), 0); //Send response to client
+        response << "HTTP/1.1 404 Not Found\r\n\r\n"; 
+        send(client_socket, response.str().c_str(), response.str().size(), 0); //Send response to client
       }
       close(client_socket);
       std::cout << "Connection closed...\n";
     }
   }
-
   close(server_fd);
   return 0;
 }
 
+// Parse method(GET, POST...)
+std::string parse_command(std::string& str) {
+  std::string com = "";
+  int i = 0;
+  while (!isspace(str[i])){
+    com += str[i];
+    i++;
+  }
+  return com;
+}
