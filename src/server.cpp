@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cstdlib>
+#include <fstream>
 #include <string>
 #include <sstream>
 #include <cstring>
@@ -77,12 +78,12 @@ int main(int argc, char **argv) {
       while (!isspace(str_buf[i++]));
       // Normal base path
       if (isspace(str_buf[i + 1])){
-        response << "HTTP/1.1 200 OK\r\n\r\n"; 
+        response << "HTTP/1.1 200 OK\r\n"; 
         send(client_socket, response.str().c_str(), response.str().size(), 0); //Send response to client
       }
       // path localhost:4221/echo/abc
       else if (str_buf.find("/echo/abc") != std::string::npos){
-        response << "HTTP/1.1 200 OK\r\n\r\n" // Status line
+        response << "HTTP/1.1 200 OK\r\n" // Status line
                 << "Content-Type: text/plain\r\n" // Headers
                 << "Content-Length: " << 3 << "\r\n\r\n"
                 << "abc"; // Body
@@ -93,10 +94,28 @@ int main(int argc, char **argv) {
         if (str_buf[pos] == ' ')
           pos++;
         std::string body = str_buf.substr(pos);
-        response << "HTTP/1.1 200 OK\r\n\r\n" // Status line
+        response << "HTTP/1.1 200 OK\r\n" // Status line
                 << "Content-Type: text/plain\r\n" // Headers
                 << "Content-Length: " << body.size() << "\r\n\r\n"
                 << body; // Body
+        send(client_socket, response.str().c_str(), response.str().size(), 0);
+      }
+      else if (str_buf.find("/files/") != std::string::npos){
+        std::string path = "/tmp/" + str_buf.substr(str_buf.find("/files/") + 7, str_buf.find("HTTP/1.1") - str_buf.find("/files/") - 8);
+        std::ifstream file(path);
+        if (file.is_open()){
+          std::stringstream body;
+          body << file.rdbuf(); // file.rdbuf() return adress buf file, body << (function take adress and read buffer file)
+          std::string st = body.str();
+          response << "HTTP/1.1 200 OK\r\n" // Status line
+                  << "Content-Type: application/octet-stream\r\n" // Headers
+                  << "Content-Length: " << st.size() << "\r\n\r\n"
+                  << st; // body
+          file.close();
+        }
+        else {
+          response << "HTTP/1.1 404 Not Found\r\n\r\n";
+        }
         send(client_socket, response.str().c_str(), response.str().size(), 0);
       }
       // Bad path
@@ -112,3 +131,4 @@ int main(int argc, char **argv) {
   close(server_fd);
   return 0;
 }
+
