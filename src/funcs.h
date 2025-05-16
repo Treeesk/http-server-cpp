@@ -11,5 +11,6 @@ enum class paths {
 };
 
 std::string parse_command(std::string&);
-paths choose_path(std::string& str);
+paths choose_path(std::string&);
+std::string check_compres(std::string&);
 #endif //FUNCS_H

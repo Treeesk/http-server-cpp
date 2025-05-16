@@ -28,3 +28,12 @@ paths choose_path(std::string& str) {
     }
     return paths::def;
 }
+
+std::string check_compres(std::string& str)
+{
+    std::string compres = "";
+    if (str.find("Accept-Encoding: gzip") != std::string::npos || str.find("Accept-Encoding:gzip") != std::string::npos){
+        compres = "gzip";
+    }
+    return compres;
+}

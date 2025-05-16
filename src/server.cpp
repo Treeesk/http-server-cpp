@@ -1,7 +1,6 @@
 #include <iostream>
 #include <cstdlib>
 #include <fstream>
-//#include <string>
 #include <sstream>
 #include <cstring>
 #include <unistd.h>
@@ -87,10 +86,20 @@ int main(int argc, char **argv) {
 
         // path localhost:4221/echo/abc
         case paths::echo:{
-          response << "HTTP/1.1 200 OK\r\n" // Status line
-                  << "Content-Type: text/plain\r\n" // Headers
-                  << "Content-Length: " << 3 << "\r\n\r\n"
-                  << "abc"; // Body
+          std::string compres = check_compres(str_buf);
+          if (compres != ""){
+            response << "HTTP/1.1 200 OK\r\n" // Status line
+                    << "Content-Type: text/plain\r\n" // Headers
+                    << "Content-Encoding: " << compres << "\r\n"
+                    << "Content-Length: " << 3 << "\r\n\r\n"
+                    << "abc"; // Body
+          }
+          else {
+              response << "HTTP/1.1 200 OK\r\n" // Status line
+                    << "Content-Type: text/plain\r\n" // Headers
+                    << "Content-Length: " << 3 << "\r\n\r\n"
+                    << "abc"; // Body
+          }
           send(client_socket, response.str().c_str(), response.str().size(), 0);
           break;
         }
