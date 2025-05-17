@@ -32,7 +32,8 @@ paths choose_path(std::string& str) {
 std::string check_compres(std::string& str)
 {
     std::string compres = "";
-    if (str.find("Accept-Encoding: gzip") != std::string::npos || str.find("Accept-Encoding:gzip") != std::string::npos){
+    std::string line_comprs = str.substr(str.find("Accept-Encoding:") + 16);
+    if (line_comprs.find("gzip") != std::string::npos){
         compres = "gzip";
     }
     return compres;
