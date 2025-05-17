@@ -1,5 +1,6 @@
 #include <iostream>
 #include "funcs.h"
+#include <zlib.h>
 // Parse method(GET, POST...)
 std::string parse_command(std::string& str) {
     std::string com = "";
@@ -37,4 +38,28 @@ std::string check_compres(std::string& str)
         compres = "gzip";
     }
     return compres;
+}
+
+
+std::string gzipCompress(const std::string_view input){
+    constexpr int windowBits = 15 + 16;
+    constexpr int memLevel = 8;
+    z_stream zStream{};
+    if(deflateInit2(&zStream, Z_DEFAULT_COMPRESSION, Z_DEFLATED, windowBits, memLevel, Z_DEFAULT_STRATEGY) !=Z_OK){
+        throw std::runtime_error("deflateInit2 failed");
+    }
+    zStream.next_in = reinterpret_cast<Bytef*>(const_cast<char*>(input.data()));
+    zStream.avail_in = static_cast<uInt>(input.size());
+    std::string compressed{};
+    compressed.resize(deflateBound(&zStream, zStream.avail_in));
+    zStream.next_out = reinterpret_cast<Bytef*>(&compressed[0]);
+    zStream.avail_out = static_cast<uInt>(compressed.size());
+    int ret = deflate(&zStream, Z_FINISH);
+    if(ret != Z_STREAM_END) {
+        deflateEnd(&zStream);
+        throw std::runtime_error("Deflate failed");
+    }
+    compressed.resize(zStream.total_out);
+    deflateEnd(&zStream);
+    return compressed;
 }

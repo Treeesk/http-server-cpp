@@ -10,6 +10,8 @@
 #include <netdb.h>
 #include "funcs.h"
 
+// сделать файл с фукнциями обработки запросов определнных. В мейне просто вызывать их
+
 int main(int argc, char **argv) {
   // Flush after every std::cout / std::cerr
   std::cout << std::unitbuf;
@@ -88,11 +90,24 @@ int main(int argc, char **argv) {
         case paths::echo:{
           std::string compres = check_compres(str_buf);
           if (compres != ""){
-            response << "HTTP/1.1 200 OK\r\n" // Status line
-                    << "Content-Type: text/plain\r\n" // Headers
-                    << "Content-Encoding: " << compres << "\r\n"
-                    << "Content-Length: " << 3 << "\r\n\r\n"
-                    << "abc"; // Body
+            std::string compressed_body;
+            try {
+              compressed_body = gzipCompress(str_buf.substr(str_buf.find("/echo/") + 6, str_buf.find("HTTP/1.1") - str_buf.find("/echo/") - 7));
+            } catch (const std::exception& e) {
+                std::cerr << "Error compress: " << e.what() << std::endl;
+                response << "HTTP/1.1 500 Internal Server Error\r\n";
+                send(client_socket, response.str().c_str(), response.str().size(), 0);
+                break;
+            }
+            std::string status = "HTTP/1.1 200 OK\r\n";
+            std::string res {
+              status +
+              "Content-Encoding: gzip\r\n" +
+              "Content-Type: text/plain\r\n" +
+              "Content-Length: " + std::to_string(compressed_body.size()) + "\r\n\r\n" + compressed_body
+            };
+            send(client_socket, res.data(), res.size(), 0);
+            break;
           }
           else {
               response << "HTTP/1.1 200 OK\r\n" // Status line
