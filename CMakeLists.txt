@@ -12,6 +12,8 @@ find_package(ZLIB REQUIRED)
 
 add_executable(server ${SOURCE_FILES}
         src/functions.cpp
-        src/funcs.h)
+        src/funcs.h
+        src/path_processing.cpp
+        src/path_processing.h)
 
 target_link_libraries(server PRIVATE Threads::Threads ZLIB::ZLIB)

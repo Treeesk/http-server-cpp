@@ -1,7 +1,6 @@
 #include <iostream>
 #include <cstdlib>
 #include <fstream>
-#include <sstream>
 #include <cstring>
 #include <unistd.h>
 #include <sys/types.h>
@@ -9,8 +8,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include "funcs.h"
-
-// сделать файл с фукнциями обработки запросов определнных. В мейне просто вызывать их
+#include "path_processing.h"
 
 int main(int argc, char **argv) {
   // Flush after every std::cout / std::cerr
@@ -81,93 +79,30 @@ int main(int argc, char **argv) {
       switch (choose_path(str_buf)) {
         // Normal base path
         case paths::base: {
-          response << "HTTP/1.1 200 OK\r\n";
-          send(client_socket, response.str().c_str(), response.str().size(), 0); //Send response to client
+          base_path(response, client_socket);
           break;
         }
 
         // path localhost:4221/echo/abc
         case paths::echo:{
-          std::string compres = check_compres(str_buf);
-          if (compres != ""){
-            std::string compressed_body;
-            try {
-              compressed_body = gzipCompress(str_buf.substr(str_buf.find("/echo/") + 6, str_buf.find("HTTP/1.1") - str_buf.find("/echo/") - 7));
-            } catch (const std::exception& e) {
-                std::cerr << "Error compress: " << e.what() << std::endl;
-                response << "HTTP/1.1 500 Internal Server Error\r\n";
-                send(client_socket, response.str().c_str(), response.str().size(), 0);
-                break;
-            }
-            std::string status = "HTTP/1.1 200 OK\r\n";
-            std::string res {
-              status +
-              "Content-Encoding: gzip\r\n" +
-              "Content-Type: text/plain\r\n" +
-              "Content-Length: " + std::to_string(compressed_body.size()) + "\r\n\r\n" + compressed_body
-            };
-            send(client_socket, res.data(), res.size(), 0);
-            break;
-          }
-          else {
-              response << "HTTP/1.1 200 OK\r\n" // Status line
-                    << "Content-Type: text/plain\r\n" // Headers
-                    << "Content-Length: " << 3 << "\r\n\r\n"
-                    << "abc"; // Body
-          }
-          send(client_socket, response.str().c_str(), response.str().size(), 0);
+          echo_path(response, client_socket, str_buf);
           break;
         }
 
         // path localhost:4221/user-agent
         case paths::agent:{
-          int pos = str_buf.rfind("User-Agent:") + 11;
-          if (str_buf[pos] == ' ')
-            pos++;
-          std::string body = str_buf.substr(pos);
-          response << "HTTP/1.1 200 OK\r\n" // Status line
-                  << "Content-Type: text/plain\r\n" // Headers
-                  << "Content-Length: " << body.size() << "\r\n\r\n"
-                  << body; // Body
-          send(client_socket, response.str().c_str(), response.str().size(), 0);
+          agent_path(response, client_socket, str_buf);
           break;
         }
 
         // path like localhost:4221/files/{path_to_file}
         case paths::file: {
-          std::string path = "/tmp/" + str_buf.substr(str_buf.find("/files/") + 7, str_buf.find("HTTP/1.1") - str_buf.find("/files/") - 8);
-          // GET request
-          if (parse_command(str_buf) == "GET"){
-            std::ifstream in(path);
-            if (in.is_open()){
-              std::stringstream body;
-              body << in.rdbuf(); // in.rdbuf() return adress buf file, body << (function take adress and read buffer file)
-              std::string st = body.str();
-              response << "HTTP/1.1 200 OK\r\n" // Status line
-                      << "Content-Type: application/octet-stream\r\n" // Headers
-                      << "Content-Length: " << st.size() << "\r\n\r\n"
-                      << st; // body
-              in.close();
-            }
-            else {
-              response << "HTTP/1.1 404 Not Found\r\n\r\n";
-            }
-          }
-          // POST request
-          else {
-            std::ofstream out(path);
-            std::string request_body = str_buf.substr(str_buf.rfind("\r\n\r\n") + 4);
-            out << request_body;
-            response << "HTTP/1.1 201 Created\r\n\r\n";
-            out.close();
-          }
-          send(client_socket, response.str().c_str(), response.str().size(), 0);
+          file_path(response, client_socket, str_buf);
           break;
         }
         // Bad path
         case paths::def: {
-          response << "HTTP/1.1 404 Not Found\r\n\r\n";
-          send(client_socket, response.str().c_str(), response.str().size(), 0); //Send response to client
+          bad_path(response, client_socket);
         }
       }
       close(client_socket);
