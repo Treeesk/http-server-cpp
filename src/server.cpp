@@ -61,8 +61,9 @@ int main(int argc, char **argv) {
   for (;;){
     // Блокирующая функция, которая ждет клиента. Когда клиент подключается, возвращает новый сокет(файловый дескриптор, представляющий соединение с клиентом).
     int client_socket  = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
+    short keep_alive = true;
     std::cout << "Client connected\n";
-    while (true) {
+    while (keep_alive) {
       char buffer[buf_size_client] = { 0 }; 
       // Accepting user requests
       int result = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
@@ -108,7 +109,7 @@ int main(int argc, char **argv) {
         }
       }
       if (str_buf.find("Connection: close") != std::string::npos || str_buf.find("Connection:close") != std::string::npos){
-        break;
+        keep_alive = false;
       }
     }
     close(client_socket);
