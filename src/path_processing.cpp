@@ -6,7 +6,8 @@
 
 using namespace std;
 void base_path(stringstream& response, const int& client_socket) {
-    response << "HTTP/1.1 200 OK\r\n";
+    response << "HTTP/1.1 200 OK\r\n"
+             << "Content-Length: 0\r\n\r\n";
     send(client_socket, response.str().c_str(), response.str().size(), 0); //Send response to client
 }
 
@@ -18,7 +19,8 @@ void echo_path(stringstream& response, const int& client_socket, string& str_buf
             compressed_body = gzipCompress(str_buf.substr(str_buf.find("/echo/") + 6, str_buf.find("HTTP/1.1") - str_buf.find("/echo/") - 7));
         } catch (const std::exception& e) {
             std::cerr << "Error compress: " << e.what() << std::endl;
-            response << "HTTP/1.1 500 Internal Server Error\r\n";
+            response << "HTTP/1.1 500 Internal Server Error\r\n"
+                     << "Content-Length: 0\r\n\r\n";
             send(client_socket, response.str().c_str(), response.str().size(), 0);
             return;
         }
@@ -39,6 +41,7 @@ void echo_path(stringstream& response, const int& client_socket, string& str_buf
               << "abc"; // Body
     }
     send(client_socket, response.str().c_str(), response.str().size(), 0);
+    return;
 }
 
 void agent_path(stringstream& response, const int& client_socket, string& str_buf) {
@@ -73,7 +76,8 @@ void file_path(stringstream& response, const int& client_socket, string& str_buf
             in.close();
         }
         else {
-            response << "HTTP/1.1 404 Not Found\r\n\r\n";
+            response << "HTTP/1.1 404 Not Found\r\n"
+                     << "Content-Length: 0\r\n\r\n";
         }
     }
     // POST request
@@ -81,13 +85,15 @@ void file_path(stringstream& response, const int& client_socket, string& str_buf
         std::ofstream out(path);
         std::string request_body = str_buf.substr(str_buf.rfind("\r\n\r\n") + 4);
         out << request_body;
-        response << "HTTP/1.1 201 Created\r\n\r\n";
+        response << "HTTP/1.1 201 Created\r\n"
+                 << "Content-Length: 0\r\n\r\n";
         out.close();
     }
     send(client_socket, response.str().c_str(), response.str().size(), 0);
 }
 
 void bad_path(stringstream& response, const int& client_socket) {
-    response << "HTTP/1.1 404 Not Found\r\n\r\n";
+    response << "HTTP/1.1 404 Not Found\r\n"
+    << "Content-Length: 0\r\n\r\n";
     send(client_socket, response.str().c_str(), response.str().size(), 0); //Send response to client
 }
