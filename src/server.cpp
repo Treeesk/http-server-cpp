@@ -57,66 +57,11 @@ int main(int argc, char **argv) {
   // Заполнится системой при подключении.
   sockaddr_in client_addr;
   int client_addr_len = sizeof(client_addr);
-  const int buf_size_client = 1024;
   std::cout << "Waiting for a client to connect...\n";
   for (;;){
     // Блокирующая функция, которая ждет клиента. Когда клиент подключается, возвращает новый сокет(файловый дескриптор, представляющий соединение с клиентом).
     int client_socket  = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
-    std::thread thr([client_socket](){ // Create a new thread and run it in the background 
-      short keep_alive = true;
-      std::cout << "Client connected\n";
-      while (keep_alive) {
-        char buffer[buf_size_client] = { 0 }; 
-        // Accepting user requests
-        int result = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
-        std::stringstream response;
-        std::string str_buf = std::string(buffer, result);
-        if (result == 0) {
-          break;
-        } 
-
-        else if (result < 0){
-          std::cerr << "recv failed: " << result << "\n";
-          break;
-        }
-        else {
-          switch (choose_path(str_buf)) {
-            // Normal base path
-            case paths::base: {
-              base_path(response, client_socket);
-              break;
-            }
-
-            // path localhost:4221/echo/abc
-            case paths::echo:{
-              echo_path(response, client_socket, str_buf);
-              break;
-            }
-
-            // path localhost:4221/user-agent
-            case paths::agent:{
-              agent_path(response, client_socket, str_buf);
-              break;
-            }
-
-            // path like localhost:4221/files/{path_to_file}
-            case paths::file: {
-              file_path(response, client_socket, str_buf);
-              break;
-            }
-            // Bad path
-            case paths::def: {
-              bad_path(response, client_socket);
-            }
-          }
-        }
-        if (str_buf.find("Connection: close") != std::string::npos || str_buf.find("Connection:close") != std::string::npos){
-          keep_alive = false;
-        }
-      }
-      close(client_socket);
-      std::cout << "Connection closed...\n";
-    });
+    std::thread thr(connection_processing, client_socket); // Create a new thread and run it in the background. Maybe ADD ref, cref.
     thr.detach(); // Main programm dont stop, this thread is running in parallel
   }
   close(server_fd);

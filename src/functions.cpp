@@ -1,6 +1,10 @@
 #include <iostream>
-#include "funcs.h"
+#include <sstream>
+#include <sys/socket.h>
 #include <zlib.h>
+#include "funcs.h"
+#include "path_processing.h"
+
 // Parse method(GET, POST...)
 std::string parse_command(std::string& str) {
     std::string com = "";
@@ -62,4 +66,62 @@ std::string gzipCompress(const std::string_view input){
     compressed.resize(zStream.total_out);
     deflateEnd(&zStream);
     return compressed;
+}
+
+
+void connection_processing(int client_socket){
+    short keep_alive = true;
+    const int buffer_size = 1024;
+    std::cout << "Client connected\n";
+    while (keep_alive) {
+        char buffer[buffer_size] = { 0 };
+        // Accepting user requests
+        int result = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
+        std::stringstream response;
+        std::string str_buf = std::string(buffer, result);
+        if (result == 0) {
+          break;
+        } 
+
+        else if (result < 0){
+          std::cerr << "recv failed: " << result << "\n";
+          break;
+        }
+        else {
+          switch (choose_path(str_buf)) {
+            // Normal base path
+            case paths::base: {
+              base_path(response, client_socket);
+              break;
+            }
+
+            // path localhost:4221/echo/abc
+            case paths::echo:{
+              echo_path(response, client_socket, str_buf);
+              break;
+            }
+
+            // path localhost:4221/user-agent
+            case paths::agent:{
+              agent_path(response, client_socket, str_buf);
+              break;
+            }
+
+            // path like localhost:4221/files/{path_to_file}
+            case paths::file: {
+              file_path(response, client_socket, str_buf);
+              break;
+            }
+            // Bad path
+            case paths::def: {
+              bad_path(response, client_socket);
+            }
+          }
+        }
+        if (str_buf.find("Connection: close") != std::string::npos || str_buf.find("Connection:close") != std::string::npos){
+          keep_alive = false;
+        }
+      }
+      close(client_socket);
+      std::cout << "Connection closed...\n";
 }
