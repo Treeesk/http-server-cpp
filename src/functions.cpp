@@ -1,5 +1,3 @@
-#include <iostream>
-#include <sstream>
 #include <sys/socket.h>
 #include <zlib.h>
 #include "funcs.h"
