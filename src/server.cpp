@@ -60,8 +60,13 @@ int main(int argc, char **argv) {
   for (;;){
     // Блокирующая функция, которая ждет клиента. Когда клиент подключается, возвращает новый сокет(файловый дескриптор, представляющий соединение с клиентом).
     int client_socket  = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
-    std::thread thr(connection_processing, client_socket); // Create a new thread and run it in the background. Maybe ADD ref, cref.
-    thr.detach(); // Main programm dont stop, this thread is running in parallel
+    try {
+      std::thread thr(connection_processing, client_socket); // Create a new thread and run it in the background. Maybe ADD ref, cref.
+      thr.detach(); // Main programm dont stop, this thread is running in parallel
+    }
+    catch (std::exception &er) {
+      std::cerr << er.what() << std::endl;
+    }
   }
   close(server_fd);
   return 0;

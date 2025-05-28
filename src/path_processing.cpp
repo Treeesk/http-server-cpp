@@ -7,7 +7,10 @@ using namespace std;
 void base_path(stringstream& response, const int& client_socket) {
     response << "HTTP/1.1 200 OK\r\n"
              << "Content-Length: 0\r\n\r\n";
-    send(client_socket, response.str().c_str(), response.str().size(), 0); //Send response to client
+    int res = send(client_socket, response.str().c_str(), response.str().size(), 0); //Send response to client
+    if (res == -1){
+        std::cerr << "Error: sending error!" << std::endl;
+    }
 }
 
 void echo_path(stringstream& response, const int& client_socket, string& str_buf) {
@@ -20,17 +23,23 @@ void echo_path(stringstream& response, const int& client_socket, string& str_buf
             std::cerr << "Error compress: " << e.what() << std::endl;
             response << "HTTP/1.1 500 Internal Server Error\r\n"
                      << "Content-Length: 0\r\n\r\n";
-            send(client_socket, response.str().c_str(), response.str().size(), 0);
+            int res = send(client_socket, response.str().c_str(), response.str().size(), 0);
+            if (res == -1) {
+                std::cerr << "Error: sending error!" << std::endl;
+            }
             return;
         }
         std::string status = "HTTP/1.1 200 OK\r\n";
-        std::string res {
+        std::string result {
             status +
             "Content-Encoding: gzip\r\n" +
             "Content-Type: text/plain\r\n" +
             "Content-Length: " + std::to_string(compressed_body.size()) + "\r\n\r\n" + compressed_body
           };
-        send(client_socket, res.data(), res.size(), 0);
+        int res = send(client_socket, result.data(), result.size(), 0);
+        if (res == -1){
+            std::cerr << "Error: sending error!" << std::endl;
+        }
         return;
     }
     else {
@@ -39,7 +48,10 @@ void echo_path(stringstream& response, const int& client_socket, string& str_buf
               << "Content-Length: " << 3 << "\r\n\r\n"
               << "abc"; // Body
     }
-    send(client_socket, response.str().c_str(), response.str().size(), 0);
+    int res = send(client_socket, response.str().c_str(), response.str().size(), 0);
+    if (res == -1){
+        std::cerr << "Error: sending error!" << std::endl;
+    }
     return;
 }
 
@@ -56,7 +68,10 @@ void agent_path(stringstream& response, const int& client_socket, string& str_bu
             << "Content-Type: text/plain\r\n" // Headers
             << "Content-Length: " << body.size() << "\r\n\r\n"
             << body; // Body
-    send(client_socket, response.str().c_str(), response.str().size(), 0);
+    int res = send(client_socket, response.str().c_str(), response.str().size(), 0);
+    if (res == -1){
+        std::cerr << "Error: sending error!" << std::endl;
+    }
 }
 
 void file_path(stringstream& response, const int& client_socket, string& str_buf) {
@@ -88,11 +103,17 @@ void file_path(stringstream& response, const int& client_socket, string& str_buf
                  << "Content-Length: 0\r\n\r\n";
         out.close();
     }
-    send(client_socket, response.str().c_str(), response.str().size(), 0);
+    int res = send(client_socket, response.str().c_str(), response.str().size(), 0);
+    if (res == -1){
+        std::cerr << "Error: sending error!" << std::endl;
+    }
 }
 
 void bad_path(stringstream& response, const int& client_socket) {
     response << "HTTP/1.1 404 Not Found\r\n"
     << "Content-Length: 0\r\n\r\n";
-    send(client_socket, response.str().c_str(), response.str().size(), 0); //Send response to client
+    int res = send(client_socket, response.str().c_str(), response.str().size(), 0); //Send response to client
+    if (res == -1){
+        std::cerr << "Error: sending error!" << std::endl;
+    }
 }
