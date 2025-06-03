@@ -73,26 +73,30 @@ void connection_processing(int client_socket){
     std::cout << "Client connected\n";
     while (keep_alive) {
         char buffer[buffer_size] = { 0 };
+        std::stringstream response;
+        std::string str_buf;
         // Accepting user requests
         int result = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
-        std::stringstream response;
-        std::string str_buf = std::string(buffer, result);
         if (result == 0) {
           break;
         } 
-
         else if (result < 0){
-          std::cerr << "recv failed: " << result << "\n";
+          if (errno == EWOULDBLOCK) {
+            std::cerr << "recv timeout\n";
+          }
+          else {
+            std::cerr << "recv failed: " << result << "\n";
+          }
           break;
         }
         else {
+          str_buf = std::string(buffer, result);
           switch (choose_path(str_buf)) {
             // Normal base path
             case paths::base: {
               base_path(response, client_socket);
               break;
             }
-
             // path localhost:4221/echo/abc
             case paths::echo:{
               echo_path(response, client_socket, str_buf);
@@ -119,7 +123,7 @@ void connection_processing(int client_socket){
         if (str_buf.find("Connection: close") != std::string::npos || str_buf.find("Connection:close") != std::string::npos){
           keep_alive = false;
         }
-      }
-      close(client_socket);
-      std::cout << "Connection closed...\n";
+    }
+    close(client_socket);
+    std::cout << "Connection closed...\n";
 }

@@ -8,8 +8,11 @@
 #include <netdb.h>
 #include <stdbool.h>
 #include <thread>
+#include <vector>
+#include <poll.h>
 #include "funcs.h"
 #include "path_processing.h"
+#include "Threadpoll.h"
 
 int main(int argc, char **argv) {
   // Flush after every std::cout / std::cerr
@@ -52,21 +55,28 @@ int main(int argc, char **argv) {
     std::cerr << "listen failed\n";
     return 1;
   }
-  
+  // poll позволяет следить за всеми сокетами и как только клиентский поток готов к записи, только тогда создает новый поток(новый поток не создается сразу после accept).
+  // std::vector<pollfd> pfds(1);
+  // pfds[0].fd = server_fd; // Accept poll
+  // pfds[0].events = POLLIN;
   // Заполнится системой при подключении.
   sockaddr_in client_addr;
   int client_addr_len = sizeof(client_addr);
   std::cout << "Waiting for a client to connect...\n";
+  int client_socket;
+  ThreadPoll thread_poll(8); // initialization 8 thread.
+  thread_poll.start();
   for (;;){
-    // Блокирующая функция, которая ждет клиента. Когда клиент подключается, возвращает новый сокет(файловый дескриптор, представляющий соединение с клиентом).
-    int client_socket  = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
-    try {
-      std::thread thr(connection_processing, client_socket); // Create a new thread and run it in the background. Maybe ADD ref, cref.
-      thr.detach(); // Main programm dont stop, this thread is running in parallel
+    struct timeval timeout; // Время ожидания на отправку повторого запроса в recv одним и тем же соединением.
+    timeout.tv_sec = 1;
+    timeout.tv_usec = 0;
+    
+    if ((client_socket = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len)) == -1){
+      std::cerr << "Error to accept client\n";
+      continue;
     }
-    catch (std::exception &er) {
-      std::cerr << er.what() << std::endl;
-    }
+    setsockopt(client_socket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+    thread_poll.add_task(client_socket);
   }
   close(server_fd);
   return 0;

@@ -14,6 +14,8 @@ add_executable(server ${SOURCE_FILES}
         src/functions.cpp
         src/funcs.h
         src/path_processing.cpp
-        src/path_processing.h)
+        src/path_processing.h
+        src/Threadpoll.h
+        src/Threadpol_realize.cpp)
 
 target_link_libraries(server PRIVATE Threads::Threads ZLIB::ZLIB)
