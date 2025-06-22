@@ -67,63 +67,65 @@ std::string gzipCompress(const std::string_view input){
 }
 
 
-void connection_processing(int client_socket){
-    short keep_alive = true;
+void connection_processing(const int& client_socket){
     const int buffer_size = 1024;
     std::cout << "Client connected\n";
-    while (keep_alive) {
-        char buffer[buffer_size] = { 0 };
-        std::stringstream response;
-        std::string str_buf;
-        // Accepting user requests
-        int result = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
-        if (result == 0) {
-          break;
-        } 
-        else if (result < 0){
-          if (errno == EWOULDBLOCK) {
-            std::cerr << "recv timeout\n";
-          }
-          else {
-            std::cerr << "recv failed: " << result << "\n";
-          }
-          break;
-        }
-        else {
-          str_buf = std::string(buffer, result);
-          switch (choose_path(str_buf)) {
-            // Normal base path
-            case paths::base: {
-              base_path(response, client_socket);
-              break;
-            }
-            // path localhost:4221/echo/abc
-            case paths::echo:{
-              echo_path(response, client_socket, str_buf);
-              break;
-            }
-
-            // path localhost:4221/user-agent
-            case paths::agent:{
-              agent_path(response, client_socket, str_buf);
-              break;
-            }
-
-            // path like localhost:4221/files/{path_to_file}
-            case paths::file: {
-              file_path(response, client_socket, str_buf);
-              break;
-            }
-            // Bad path
-            case paths::def: {
-              bad_path(response, client_socket);
-            }
-          }
-        }
-        if (str_buf.find("Connection: close") != std::string::npos || str_buf.find("Connection:close") != std::string::npos){
-          keep_alive = false;
-        }
+    
+    char buffer[buffer_size] = { 0 };
+    std::stringstream response;
+    std::string str_buf;
+    // Accepting user requests
+    int result = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
+    if (result == 0) {
+      close(client_socket);
+      std::cout << "Connection closed...\n";
+      return;
+    } 
+    else if (result < 0){
+      if (errno == EWOULDBLOCK) {
+        std::cerr << "recv timeout\n";
+      }
+      else {
+        std::cerr << "recv failed: " << result << "\n";
+      }
+      close(client_socket);
+      return;
     }
-    close(client_socket);
-    std::cout << "Connection closed...\n";
+    else {
+      str_buf = std::string(buffer, result);
+      switch (choose_path(str_buf)) {
+        // Normal base path
+        case paths::base: {
+          base_path(response, client_socket);
+          break;
+        }
+        // path localhost:4221/echo/abc
+        case paths::echo:{
+          echo_path(response, client_socket, str_buf);
+          break;
+        }
+
+        // path localhost:4221/user-agent
+        case paths::agent:{
+          agent_path(response, client_socket, str_buf);
+          break;
+        }
+
+        // path like localhost:4221/files/{path_to_file}
+        case paths::file: {
+          file_path(response, client_socket, str_buf);
+          break;
+        }
+        // Bad path
+        case paths::def: {
+          bad_path(response, client_socket);
+        }
+      }
+    }
+    if (str_buf.find("Connection: close") != std::string::npos || str_buf.find("Connection:close") != std::string::npos){
+      close(client_socket);
+      std::cout << "Connection closed...\n";
+    }
+  close(client_socket);
+  std::cout << "Connection closed...\n";
 }

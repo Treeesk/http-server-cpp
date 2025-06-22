@@ -22,7 +22,7 @@ class ThreadPoll {
         std::vector<Thread*> workers;
         std::queue<int> tasks_queue; // for client_socket
         void worker_func(Thread*);
-        std::mutex task_queue_mut;
+        std::mutex task_queue_mut; 
         std::condition_variable tasks_access;
     public:
         ThreadPoll(int cnt_threads);

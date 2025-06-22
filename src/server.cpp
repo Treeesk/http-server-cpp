@@ -50,33 +50,64 @@ int main(int argc, char **argv) {
   }
   
   // Затем указываем слушать сокет server_fd, чтобы он мог принимать входящие подключения через accept. Максимум 25 клиентов на подключение. 
-  int connection_backlog = 25;
+  int connection_backlog = 100;
   if (listen(server_fd, connection_backlog) != 0) {
     std::cerr << "listen failed\n";
     return 1;
   }
-  // poll позволяет следить за всеми сокетами и как только клиентский поток готов к записи, только тогда создает новый поток(новый поток не создается сразу после accept).
-  // std::vector<pollfd> pfds(1);
-  // pfds[0].fd = server_fd; // Accept poll
-  // pfds[0].events = POLLIN;
-  // Заполнится системой при подключении.
   sockaddr_in client_addr;
   int client_addr_len = sizeof(client_addr);
   std::cout << "Waiting for a client to connect...\n";
+  // int pipefd[2]; // "Труба" для двухсторонней связи между потоками, [0] - читает, [1] - пишет. В первый элемент будем писать в не основном потоке, а в основном из нулевого элемента будет читать (значит данные появились)
+  // if (pipe(pipefd)) {
+  //   std::cerr << "ERROR: Failed pipe!\n";
+  // }
+  // // poll позволяет следить за всеми сокетами и как только клиентский поток готов к записи, только тогда создает новый поток(новый поток не создается сразу после accept).
+  std::vector<pollfd> pfds(1);
+  // pfds[0].fd = pipefd[0];
+  // pfds[0].events = POLLIN;
+  pfds[0].fd = server_fd; // Accept poll
+  pfds[0].events = POLLIN;
   int client_socket;
   ThreadPoll thread_poll(8); // initialization 8 thread.
   thread_poll.start();
   for (;;){
     struct timeval timeout; // Время ожидания на отправку повторого запроса в recv одним и тем же соединением.
-    timeout.tv_sec = 1;
+    timeout.tv_sec = 5;
     timeout.tv_usec = 0;
-    
-    if ((client_socket = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len)) == -1){
-      std::cerr << "Error to accept client\n";
+    int rv = poll(pfds.data(), pfds.size(), 60000); // 60 sec timeout 
+    if (rv == -1) {
+      std::cerr << "POLL ERROR\n";
       continue;
     }
-    setsockopt(client_socket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
-    thread_poll.add_task(client_socket);
+    else if (rv == 0) {
+      std::cerr << "Timeout occurred! No data after 60 seconds.\n";
+      continue;
+    }
+    else {
+      for (int i = 0; i < pfds.size(); ++i){
+        if (pfds[i].revents & (POLLERR | POLLHUP)){
+            std::cerr << "Socket " << pfds[i].fd << " has error or hangup. Removing.\n";
+            close(pfds[i].fd);
+            pfds.erase(pfds.begin() + i);
+            --i;
+            continue;
+        }
+        else if (pfds[i].revents & POLLIN) {
+          if (pfds[i].fd == server_fd) {
+            client_socket = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
+            setsockopt(client_socket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+            pfds.push_back({client_socket, POLLIN, 0});
+          }
+          else {
+            int client_socket = pfds[i].fd;
+            thread_poll.add_task(client_socket);
+            pfds.erase(pfds.begin() + i);
+            --i;
+          }
+        }
+      }
+    }
   }
   close(server_fd);
   return 0;
