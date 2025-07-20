@@ -10,9 +10,9 @@ void ThreadPoll::worker_func(Thread* th){
         if (!tasks_queue.empty()){
             auto elem = tasks_queue.front(); // Take task from queue
             tasks_queue.pop();
-            lock.unlock();
+            lock.unlock();  
             try {
-                connection_processing(elem); // solution task
+                connection_processing(elem, _kq); // solution task
             }
             catch (std::exception& err){
                 std::cerr << err.what() << std::endl;
@@ -21,7 +21,7 @@ void ThreadPoll::worker_func(Thread* th){
     }
 }
 
-ThreadPoll::ThreadPoll(int cnt_threads){
+ThreadPoll::ThreadPoll(int cnt_threads, const int& kq): _kq(kq){
     stopped = false; // should always be false until the destructor is called. It indicates that the thread pool is still alive and able to process incoming tasks.
     paused = true; // Waiting mode
     for (int i = 0; i < cnt_threads; ++i) {

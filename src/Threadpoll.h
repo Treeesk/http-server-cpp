@@ -19,13 +19,14 @@ class ThreadPoll {
     private:
         std::atomic<bool> stopped;
         std::atomic<bool> paused;
+        std::atomic<int> _kq;
         std::vector<Thread*> workers;
         std::queue<int> tasks_queue; // for client_socket
         void worker_func(Thread*);
         std::mutex task_queue_mut; 
         std::condition_variable tasks_access;
     public:
-        ThreadPoll(int cnt_threads);
+        ThreadPoll(int cnt_threads, const int& kq);
         void start();
         void stop();
         void add_task(int client_sock);

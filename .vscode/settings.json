@@ -48,5 +48,6 @@
         "algorithm": "cpp",
         "condition_variable": "cpp",
         "forward_list": "cpp"
-    }
+    },
+    "C_Cpp.errorSquiggles": "disabled"
 }
