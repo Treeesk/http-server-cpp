@@ -1,8 +1,6 @@
 #include <sys/socket.h>
 #include <zlib.h>
-#include "funcs.h"
 #include "path_processing.h"
-
 #include <sys/event.h>
 #include "Threadpoll.h"
 
@@ -73,53 +71,28 @@ std::string gzipCompress(const std::string_view input){
 void connection_processing(const int& client_socket, const int& kq){
     const int buffer_size = 1024;
     std::cout << "Client connected\n";
-    
-    // struct kevent change;
-    // EV_SET(&change, client_socket, EVFILT_READ, EV_DISABLE, 0, 0, NULL);
-    // kevent(kq, &change, 1, NULL, 0, NULL); // удалить нужно сразу, т.к пока в другом потоке проходит, может снова добавиться 
-
     char buffer[buffer_size] = { 0 };
     std::stringstream response;
     std::string str_buf;
-    while (true){
-      int result = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
-      if (result > 0){
-        str_buf.append(buffer, result); 
-      }
-      else if (result == 0){
-        close(client_socket);
+    int result = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
+    if (result == 0) {
+      close(client_socket);
+      std::cout << "Connection closed...\n";
+      return;
+    } 
+    else if (result < 0){
+      if (errno == EWOULDBLOCK || errno == EAGAIN) {
+        std::cerr << "recv timeout\n";
         return;
       }
       else {
-        if (errno == EWOULDBLOCK || errno == EAGAIN) 
-          break;
-        close(client_socket);
-        return;
+        std::cerr << "recv failed: " << strerror(errno) << "\n";
       }
+      close(client_socket);
+      return;
     }
-    // Accepting user requests
-    // int result = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
-    // if (result == 0) {
-    //   close(client_socket);
-    //   std::cout << "Connection closed...\n";
-    //   return;
-    // } 
-    // else if (result < 0){
-    //   if (errno == EWOULDBLOCK || errno == EAGAIN) {
-    //     std::cerr << "recv timeout\n";
-    //     // Перерегистрировать на чтение
-    //     // struct kevent ev;
-    //     // EV_SET(&ev, client_socket, EVFILT_READ, EV_ENABLE, 0, 0, NULL);
-    //     // kevent(kq, &ev, 1, NULL, 0, NULL);
-    //     return;
-    //   } else {
-    //     std::cerr << "recv failed: " << strerror(errno) << "\n";
-    //     close(client_socket);
-    //     return;
-    //   }
-    // }
-    // else {
-   //   str_buf = std::string(buffer, result);
+    else {
+      str_buf = std::string(buffer, result);
       switch (choose_path(str_buf)) {
         // Normal base path
         case paths::base: {
@@ -148,17 +121,7 @@ void connection_processing(const int& client_socket, const int& kq){
           bad_path(response, client_socket);
         }
       }
-    //}
-    // if (str_buf.find("Connection: close") != std::string::npos || str_buf.find("Connection:close") != std::string::npos){
-    //   shutdown(client_socket, SHUT_WR); // SHUT_WR, то запрещена передача данных.
-    //   close(client_socket); // автоматически удалить из kq. 
-    //   std::cout << "Connection closed...\n";
-    // }
-    // else {
-    //   struct kevent ev;
-    //   EV_SET(&ev, client_socket, EVFILT_READ, EV_ENABLE, 0, 0, NULL);
-    //   kevent(kq, &ev, 1, NULL, 0, NULL);
-    // }
+    }
   close(client_socket);
   std::cout << "Connection closed...\n";
 }

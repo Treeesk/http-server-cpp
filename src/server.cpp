@@ -1,19 +1,12 @@
 #include <cstdlib>
 #include <fstream>
-#include <cstring>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netdb.h>
-#include <stdbool.h>
-#include <thread>
-#include <vector>
-#include <poll.h>
 #include "funcs.h"
-#include "path_processing.h"
 #include "Threadpoll.h"
-
 #include <fcntl.h>
 #include <sys/event.h>
 

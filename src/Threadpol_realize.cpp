@@ -5,7 +5,7 @@ void ThreadPoll::worker_func(Thread* th){
         std::unique_lock<std::mutex> lock(task_queue_mut); // нужно захватить мьютекс. Если сделать это не удаётся, происходит блокировка, которая продолжается до тех пор, пока мьютекс не будет захвачен. Мьютекс захватывается во избежание критических состязаний при пробуждении.
         th->is_working = false;
         tasks_access.wait(lock, [this]()->bool{return ((!tasks_queue.empty() && !paused) || stopped);}); // Ждать если нет задач в очереди либо работа пула приостановлена
-        // lock в wait нужен, если происходит  notify_all или notify_one, то tasks_access пробуждается и проверяется функтор, если выдается false, то происходит lock.unlock() и tasks_access засыпает до следующего пробуждения.
+        // lock в wait нужен, если происходит notify_all или notify_one, то tasks_access пробуждается и проверяется функтор, если выдается false, то происходит lock.unlock() и tasks_access засыпает до следующего пробуждения.
         th->is_working = true;
         if (!tasks_queue.empty()){
             auto elem = tasks_queue.front(); // Take task from queue

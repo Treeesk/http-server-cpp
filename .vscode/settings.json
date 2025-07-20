@@ -47,7 +47,13 @@
         "vector": "cpp",
         "algorithm": "cpp",
         "condition_variable": "cpp",
-        "forward_list": "cpp"
+        "forward_list": "cpp",
+        "__tree": "cpp",
+        "charconv": "cpp",
+        "complex": "cpp",
+        "memory": "cpp",
+        "iomanip": "cpp",
+        "map": "cpp"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

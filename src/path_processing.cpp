@@ -1,7 +1,7 @@
 #include <sstream>
 #include <sys/socket.h>
 #include <fstream>
-#include  "funcs.h"
+#include "funcs.h"
 
 using namespace std;
 void base_path(stringstream& response, const int& client_socket) {
